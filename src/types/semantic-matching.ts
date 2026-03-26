@@ -1,14 +1,15 @@
 // ============ 语义匹配相关类型 ============
 
 export interface MatchCandidate {
-  id: string
-  currentDescription: string
+  id?: string
+  currentDescription?: string
   previousDescription: string
   similarity: number
-  matchType: 'exact' | 'high' | 'medium' | 'low' | 'none'
+  matchType?: 'exact' | 'high' | 'medium' | 'low' | 'none'
   previousYear: string
   previousAccountId?: string
   previousValue?: number
+  matchedFields?: string[]
 }
 
 export interface MatchResult {

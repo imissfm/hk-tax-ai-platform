@@ -21,7 +21,7 @@ export interface ParsedFile {
 
 // ============ 解析数据相关类型 ============
 export interface ParsedRow {
-  id: number
+  id: number | string
   accountCode: string
   accountName: string
   bookValue: string
@@ -30,6 +30,8 @@ export interface ParsedRow {
   confidence: number
   yearInfo?: YearInfo
   source: 'current' | 'previous'
+  currentYear?: number
+  previousYear?: number
 }
 
 // ============ 年份信息相关类型 ============
@@ -39,6 +41,9 @@ export interface YearInfo {
   fiscalYearType: 'HK' | 'SG' | 'CN' | 'US' | 'OTHER'
   replacementType: 'auto' | 'manual' | 'none'
   confidence: number
+  detected?: boolean           // 是否已检测到年份信息
+  previousYear?: number        // 上年年份（兼容字段）
+  currentYear?: number         // 本年年份（兼容字段）
 }
 
 export interface YearReplacementRule {

@@ -2,18 +2,36 @@ import React from 'react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Bell, User, ChevronDown, Cpu, Database } from 'lucide-react'
+import { ClientSelector } from './ClientSelector'
+import { useApp } from '@/context/AppContext'
+import { mockEntities } from '@/data/mockClientData'
 
 interface HeaderProps {
   title: string
   subtitle?: string
   rightContent?: React.ReactNode
+  showClientSelector?: boolean
 }
 
-export function Header({ title, subtitle, rightContent }: HeaderProps) {
+export function Header({ title, subtitle, rightContent, showClientSelector = true }: HeaderProps) {
+  const { groups, selectedGroupId, selectedEntityId, setSelectedGroup, setSelectedEntity } = useApp()
+
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-6 bg-card/80 backdrop-blur-sm border-b border-border">
       <div className="flex items-center gap-4">
-        <div>
+        {/* 客户选择器 */}
+        {showClientSelector && (
+          <ClientSelector
+            groups={groups}
+            selectedGroupId={selectedGroupId}
+            onGroupChange={setSelectedGroup}
+            entities={mockEntities}
+            selectedEntityId={selectedEntityId}
+            onEntityChange={setSelectedEntity}
+          />
+        )}
+
+        <div className="border-l border-border pl-4">
           <h1 className="text-lg font-semibold text-foreground">{title}</h1>
           {subtitle && (
             <p className="text-sm text-muted-foreground">{subtitle}</p>

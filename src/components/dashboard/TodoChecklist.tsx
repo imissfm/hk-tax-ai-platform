@@ -114,7 +114,11 @@ function TodoItemRow({
       {/* Action */}
       {todo.pageId && !todo.completed && (
         <button
-          onClick={() => onNavigate?.(todo.pageId)}
+          onClick={() => {
+            if (todo.pageId) {
+              onNavigate?.(todo.pageId)
+            }
+          }}
           className="p-1 hover:bg-muted rounded"
         >
           <ChevronRight className="w-4 h-4 text-muted-foreground" />

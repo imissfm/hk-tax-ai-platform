@@ -9,6 +9,7 @@ import { CoverLetterPage } from '@/pages/CoverLetterPage'
 import { ExportPage } from '@/pages/ExportPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { AppProvider } from '@/context/AppContext'
 
 function App() {
   const [currentPage, setCurrentPage] = useState('dashboard')
@@ -44,19 +45,21 @@ function App() {
   }
 
   return (
-    <TooltipProvider>
-      <div className="min-h-screen bg-background">
-        <Sidebar
-          currentPage={currentPage}
-          onNavigate={handleNavigate}
-          collapsed={sidebarCollapsed}
-          onToggle={handleToggleSidebar}
-        />
-        <PageLayout sidebarCollapsed={sidebarCollapsed}>
-          {renderPage()}
-        </PageLayout>
-      </div>
-    </TooltipProvider>
+    <AppProvider>
+      <TooltipProvider>
+        <div className="min-h-screen bg-background">
+          <Sidebar
+            currentPage={currentPage}
+            onNavigate={handleNavigate}
+            collapsed={sidebarCollapsed}
+            onToggle={handleToggleSidebar}
+          />
+          <PageLayout sidebarCollapsed={sidebarCollapsed}>
+            {renderPage()}
+          </PageLayout>
+        </div>
+      </TooltipProvider>
+    </AppProvider>
   )
 }
 

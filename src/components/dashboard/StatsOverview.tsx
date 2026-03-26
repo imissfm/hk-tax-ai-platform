@@ -1,9 +1,13 @@
 import { FolderKanban, CheckSquare, TrendingUp, Cpu } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
-import type { DashboardStats } from '@/types/dashboard'
 
 interface StatsOverviewProps {
-  stats: DashboardStats
+  stats: {
+    activeProjects: number
+    pendingTasks: number
+    completedThisWeek: number
+    aiProcessing: number
+  }
 }
 
 export function StatsOverview({ stats }: StatsOverviewProps) {

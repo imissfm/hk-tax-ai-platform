@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Header } from '@/components/layout/Header'
+import { useApp } from '@/context/AppContext'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -15,28 +16,26 @@ import {
   ChevronRight,
   FileSpreadsheet,
   TrendingUp,
-  Minus,
-  Plus,
   RefreshCw,
   Building2,
   Percent,
   DollarSign,
   BarChart3,
+  AlertCircle,
 } from 'lucide-react'
 import { cn, formatCurrency, formatPercent } from '@/lib/utils'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell,
-  FunnelChart, Funnel, LabelList,
 } from 'recharts'
 
-// 税负结构饼图数据 - 暖色调系
+// 税负结构饼图数据
 const taxStructureData = [
   { name: '优惠税率 (8.25%)', value: 165000, color: '#d97706' },
   { name: '标准税率 (16.5%)', value: 1963500, color: '#f97316' },
 ]
 
-// 利润瀑布图数据 - 暖色调系
+// 利润瀑布图数据
 const profitWaterfallData = [
   { name: '营业额', value: 125, fill: '#f97316' },
   { name: '销货成本', value: -85, fill: '#dc2626' },
@@ -47,7 +46,7 @@ const profitWaterfallData = [
   { name: '应评税利润', value: 13.9, fill: '#c2410c' },
 ]
 
-// 不可扣减费用构成 - 暖色调系
+// 不可扣减费用构成
 const nonDeductibleChartData = [
   { name: '关联方利息', value: 260000, color: '#dc2626' },
   { name: '娱乐费用', value: 180000, color: '#f97316' },
@@ -55,7 +54,7 @@ const nonDeductibleChartData = [
   { name: '罚款罚金', value: 45000, color: '#fb923c' },
 ]
 
-// 折旧免税额构成 - 暖色调系
+// 折旧免税额构成
 const depreciationChartData = [
   { name: '环保设施', value: 1500000, color: '#84cc16' },
   { name: '机器设备', value: 1700000, color: '#d97706' },
@@ -108,6 +107,7 @@ const aiAdjustments = [
 ]
 
 export function ProfitsTaxPage() {
+  const { selectedEntity, selectedGroup } = useApp()
   const [activeTab, setActiveTab] = useState('computation')
   const [isCalculating, setIsCalculating] = useState(false)
 
@@ -116,11 +116,36 @@ export function ProfitsTaxPage() {
     setTimeout(() => setIsCalculating(false), 2000)
   }
 
+  // 未选择实体时显示提示
+  if (!selectedEntity) {
+    return (
+      <div className="min-h-screen">
+        <Header
+          title="利得税计算"
+          subtitle="请先选择一个实体开始操作"
+        />
+        <div className="p-6">
+          <div className="bg-muted/30 border border-border rounded-lg p-8 text-center">
+            <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium mb-2">请先选择实体</h3>
+            <p className="text-muted-foreground text-sm mb-4">
+              利得税计算需要针对具体的实体进行，请在顶部选择器中选择集团和实体
+            </p>
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <Building2 className="w-4 h-4" />
+              <span>点击顶部「当前客户」选择器开始</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen">
       <Header
-        title="香港利得税计算工作台"
-        subtitle="自动化计算应评税利润及税额"
+        title={`${selectedEntity.name} - 利得税计算`}
+        subtitle={`${selectedGroup?.name || ''} · ${selectedEntity.jurisdiction.name}`}
       />
 
       <div className="p-6 space-y-6">
@@ -137,119 +162,163 @@ export function ProfitsTaxPage() {
                 <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center bg-primary/10')}>
                   <stat.icon className={cn('w-5 h-5', stat.color)} />
                 </div>
-                <div className="mt-4">
+                <div className="mt-3">
+                  <p className="text-2xl font-bold font-mono">{stat.value}</p>
                   <p className="text-sm text-muted-foreground">{stat.label}</p>
-                  <p className={cn('text-2xl font-bold mt-1', stat.color)}>{stat.value}</p>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
 
-        {/* 主内容 */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
+        {/* AI 调整提示 */}
+        <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <Brain className="w-5 h-5 text-primary mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-medium">AI 智能计算就绪</p>
+                <div className="mt-2 space-y-1">
+                  {aiAdjustments.map((adj, idx) => (
+                    <div key={idx} className={cn(
+                      'text-xs flex items-center gap-2',
+                      adj.type === 'warning' ? 'text-warning' :
+                      adj.type === 'success' ? 'text-success' : 'text-info'
+                    )}>
+                      {adj.type === 'warning' ? <AlertTriangle className="w-3 h-3" /> :
+                       adj.type === 'success' ? <CheckCircle2 className="w-3 h-3" /> :
+                       <Sparkles className="w-3 h-3" />}
+                      <span>{adj.title}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <Button
+                onClick={handleCalculate}
+                disabled={isCalculating}
+                className="bg-primary hover:bg-primary/90"
+              >
+                {isCalculating ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    计算中...
+                  </>
+                ) : (
+                  <>
+                    <Calculator className="w-4 h-4 mr-2" />
+                    开始计算
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 详细计算 */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">利得税计算明细</CardTitle>
+            <CardDescription>2024/25 年度</CardDescription>
+          </CardHeader>
+          <CardContent>
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList>
-                <TabsTrigger value="computation">税额计算</TabsTrigger>
-                <TabsTrigger value="charts" className="gap-1">
-                  <BarChart3 className="w-4 h-4" />
-                  可视化分析
-                </TabsTrigger>
-                <TabsTrigger value="nonDeductible">不可扣减项</TabsTrigger>
-                <TabsTrigger value="depreciation">折旧免税额</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="computation">计算表</TabsTrigger>
+                <TabsTrigger value="non-deductible">不可扣减</TabsTrigger>
+                <TabsTrigger value="depreciation">折旧免税</TabsTrigger>
+                <TabsTrigger value="charts">图表分析</TabsTrigger>
               </TabsList>
 
               <TabsContent value="computation" className="mt-4">
-                <Card hover>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Calculator className="w-5 h-5 text-primary" />
-                      利得税计算表
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {/* 计算步骤 */}
-                      {[
-                        { label: '账面净利润', value: profitTaxData.netProfit, note: '财务报表' },
-                        { label: '加：不可扣减费用', value: profitTaxData.nonDeductible, note: '4项调整', type: 'add' },
-                        { label: '减：豁免收入', value: profitTaxData.taxExemptIncome, note: '离岸收入', type: 'subtract' },
-                        { label: '应评税利润', value: profitTaxData.assessableProfit, note: '调整后', highlight: true },
-                      ].map((step, index) => (
-                        <div
-                          key={step.label}
-                          className={cn(
-                            'flex items-center justify-between p-4 rounded-lg',
-                            step.highlight ? 'bg-primary/5 border-2 border-primary/20' : 'bg-muted/30'
-                          )}
-                        >
-                          <div className="flex items-center gap-3">
-                            {step.type === 'add' && <Plus className="w-4 h-4 text-destructive" />}
-                            {step.type === 'subtract' && <Minus className="w-4 h-4 text-success" />}
-                            {!step.type && <div className="w-4" />}
-                            <div>
-                              <p className="font-medium">{step.label}</p>
-                              <p className="text-xs text-muted-foreground">{step.note}</p>
-                            </div>
-                          </div>
-                          <p className={cn(
-                            'font-mono font-semibold',
-                            step.highlight && 'text-primary text-lg'
-                          )}>
-                            {formatCurrency(step.value)}
-                          </p>
-                        </div>
-                      ))}
+                <div className="space-y-4">
+                  {[
+                    { label: '净利润 (账面)', value: profitTaxData.netProfit },
+                    { label: '(+) 不可扣减费用', value: profitTaxData.nonDeductible },
+                    { label: '(-) 豁免税收入', value: -profitTaxData.taxExemptIncome },
+                    { label: '应评税利润', value: profitTaxData.assessableProfit, highlight: true },
+                    { label: '优惠税率利润 @ 8.25%', value: profitTaxData.concessionaryProfit },
+                    { label: '标准税率利润 @ 16.5%', value: profitTaxData.standardProfit },
+                    { label: '应缴利得税', value: profitTaxData.taxPayable, highlight: true, bold: true },
+                  ].map((step) => (
+                    <div key={step.label} className={cn(
+                      'flex items-center justify-between py-2 border-b',
+                      step.highlight ? 'bg-muted/50 px-3 rounded-lg border-primary/20' : ''
+                    )}>
+                      <span className={cn(step.bold ? 'font-semibold' : 'text-muted-foreground')}>
+                        {step.label}
+                      </span>
+                      <span className={cn('font-mono', step.bold ? 'text-lg font-bold text-primary' : '')}>
+                        {formatCurrency(step.value)}
+                      </span>
                     </div>
+                  ))}
+                </div>
+              </TabsContent>
 
-                    {/* 分档计算 */}
-                    <div className="mt-6 p-4 rounded-lg bg-success/5 border border-success/20">
-                      <p className="font-medium mb-4">分档税额计算</p>
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">首 HKD 2,000,000 @ 8.25%</span>
-                          <span className="font-mono">{formatCurrency(2000000)}</span>
-                          <span className="font-mono font-semibold text-success">{formatCurrency(165000)}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">余额 @ 16.5%</span>
-                          <span className="font-mono">{formatCurrency(11900000)}</span>
-                          <span className="font-mono font-semibold">{formatCurrency(1963500)}</span>
-                        </div>
-                        <div className="border-t border-success/20 pt-3 flex items-center justify-between">
-                          <span className="font-medium">应缴利得税</span>
-                          <span className="font-mono font-bold text-lg text-primary">{formatCurrency(profitTaxData.taxPayable)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+              <TabsContent value="non-deductible" className="mt-4">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>项目</TableHead>
+                      <TableHead>金额</TableHead>
+                      <TableHead>原因</TableHead>
+                      <TableHead>条款</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {nonDeductibleItems.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell>{item.item}</TableCell>
+                        <TableCell className="font-mono">{formatCurrency(item.amount)}</TableCell>
+                        <TableCell className="text-muted-foreground">{item.reason}</TableCell>
+                        <TableCell><Badge variant="outline">{item.section}</Badge></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TabsContent>
+
+              <TabsContent value="depreciation" className="mt-4">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>类别</TableHead>
+                      <TableHead>类别/成本</TableHead>
+                      <TableHead>免税额</TableHead>
+                      <TableHead>税率</TableHead>
+                      <TableHead>类型</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {depreciationAllowances.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell>{item.category}</TableCell>
+                        <TableCell className="font-mono">{formatCurrency(item.poolBalance || item.cost!)}</TableCell>
+                        <TableCell className="font-mono text-success">{formatCurrency(item.allowance)}</TableCell>
+                        <TableCell><Badge variant="secondary">{item.rate}</Badge></TableCell>
+                        <TableCell className="text-muted-foreground">{item.type}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </TabsContent>
 
               <TabsContent value="charts" className="mt-4 space-y-6">
-                {/* 税负结构饼图 + 利润瀑布图 */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* 税负结构饼图 */}
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Percent className="w-5 h-5 text-primary" />
-                        税负结构
-                      </CardTitle>
-                      <CardDescription>优惠税率 vs 标准税率税款构成</CardDescription>
+                      <CardTitle className="text-base">税负结构</CardTitle>
+                      <CardDescription>优惠税率 vs 标准税率</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <ResponsiveContainer width="100%" height={240}>
+                      <ResponsiveContainer width="100%" height={200}>
                         <PieChart>
                           <Pie
                             data={taxStructureData}
                             cx="50%" cy="50%"
-                            innerRadius={60} outerRadius={90}
-                            paddingAngle={4}
+                            innerRadius={50} outerRadius={80}
                             dataKey="value"
-                            label={({ name, percent }) => `${name.split(' ')[0]} ${(percent * 100).toFixed(0)}%`}
-                            labelLine={false}
                           >
                             {taxStructureData.map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={entry.color} />
@@ -258,41 +327,23 @@ export function ProfitsTaxPage() {
                           <Tooltip formatter={(value: number) => formatCurrency(value)} />
                         </PieChart>
                       </ResponsiveContainer>
-                      <div className="flex justify-center gap-6 mt-2">
-                        {taxStructureData.map(d => (
-                          <div key={d.name} className="flex items-center gap-1.5 text-xs">
-                            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
-                            <span className="text-muted-foreground">{d.name}</span>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="text-center mt-3 p-2 bg-muted/30 rounded-lg">
-                        <span className="text-sm text-muted-foreground">应缴总税款: </span>
-                        <span className="text-lg font-bold text-primary">{formatCurrency(2128500)}</span>
-                      </div>
                     </CardContent>
                   </Card>
 
                   {/* 不可扣减费用构成 */}
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <AlertTriangle className="w-5 h-5 text-orange-500" />
-                        不可扣减费用构成
-                      </CardTitle>
+                      <CardTitle className="text-base">不可扣减费用</CardTitle>
                       <CardDescription>AI 识别的 4 项不可扣减支出</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <ResponsiveContainer width="100%" height={240}>
+                      <ResponsiveContainer width="100%" height={200}>
                         <PieChart>
                           <Pie
                             data={nonDeductibleChartData}
                             cx="50%" cy="50%"
-                            outerRadius={90}
-                            paddingAngle={2}
+                            outerRadius={80}
                             dataKey="value"
-                            label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
-                            labelLine={true}
                           >
                             {nonDeductibleChartData.map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={entry.color} />
@@ -301,14 +352,6 @@ export function ProfitsTaxPage() {
                           <Tooltip formatter={(value: number) => formatCurrency(value)} />
                         </PieChart>
                       </ResponsiveContainer>
-                      <div className="flex flex-wrap justify-center gap-4 mt-2">
-                        {nonDeductibleChartData.map(d => (
-                          <div key={d.name} className="flex items-center gap-1.5 text-xs">
-                            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
-                            <span className="text-muted-foreground">{d.name}</span>
-                          </div>
-                        ))}
-                      </div>
                     </CardContent>
                   </Card>
                 </div>
@@ -316,18 +359,15 @@ export function ProfitsTaxPage() {
                 {/* 利润瀑布图 */}
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <BarChart3 className="w-5 h-5 text-primary" />
-                      利润计算瀑布图
-                    </CardTitle>
-                    <CardDescription>从营业额到应评税利润的计算流程 (单位: 百万 HKD)</CardDescription>
+                    <CardTitle className="text-base">利润计算瀑布图</CardTitle>
+                    <CardDescription>从营业额到应评税利润</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
+                    <ResponsiveContainer width="100%" height={250}>
                       <BarChart data={profitWaterfallData} barSize={40}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                         <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                        <YAxis tick={{ fontSize: 12 }} label={{ value: '百万 HKD', angle: -90, position: 'insideLeft', style: { fontSize: 11, fill: '#94a3b8' } }} />
+                        <YAxis tick={{ fontSize: 11 }} />
                         <Tooltip formatter={(value: number) => `${value} M`} />
                         <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                           {profitWaterfallData.map((entry, index) => (
@@ -338,200 +378,10 @@ export function ProfitsTaxPage() {
                     </ResponsiveContainer>
                   </CardContent>
                 </Card>
-
-                {/* 折旧免税额构成 */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <TrendingUp className="w-5 h-5 text-green-500" />
-                      折旧免税额分布
-                    </CardTitle>
-                    <CardDescription>各类资产折旧免税额构成</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={250}>
-                      <BarChart data={depreciationChartData} layout="vertical" barSize={24}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                        <XAxis type="number" tick={{ fontSize: 12 }} tickFormatter={(v) => `${(v / 1000000).toFixed(1)}M`} />
-                        <YAxis type="category" dataKey="name" tick={{ fontSize: 12 }} width={80} />
-                        <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                        <Bar dataKey="value" name="免税额" radius={[0, 4, 4, 0]}>
-                          {depreciationChartData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                    <div className="text-center mt-2 p-2 bg-green-50 rounded-lg border border-green-100">
-                      <span className="text-sm text-muted-foreground">总免税额: </span>
-                      <span className="text-lg font-bold text-green-600">{formatCurrency(3880000)}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="nonDeductible" className="mt-4">
-                <Card hover>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <AlertTriangle className="w-5 h-5 text-warning" />
-                      不可扣减费用明细
-                    </CardTitle>
-                    <CardDescription>
-                      AI 自动识别需要加回的费用项目
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>费用项目</TableHead>
-                          <TableHead className="text-right">金额</TableHead>
-                          <TableHead>原因</TableHead>
-                          <TableHead>税务条款</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {nonDeductibleItems.map((item) => (
-                          <TableRow key={item.id}>
-                            <TableCell className="font-medium">{item.item}</TableCell>
-                            <TableCell className="text-right font-mono text-destructive">
-                              {formatCurrency(item.amount)}
-                            </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">{item.reason}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{item.section}</Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                        <TableRow className="bg-muted/30">
-                          <TableCell className="font-semibold">合计</TableCell>
-                          <TableCell className="text-right font-mono font-semibold text-destructive">
-                            {formatCurrency(profitTaxData.nonDeductible)}
-                          </TableCell>
-                          <TableCell colSpan={2} />
-                        </TableRow>
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="depreciation" className="mt-4">
-                <Card hover>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <TrendingUp className="w-5 h-5 text-success" />
-                      折旧免税额计算
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>资产类别</TableHead>
-                          <TableHead className="text-right">池结余/成本</TableHead>
-                          <TableHead>免税额率</TableHead>
-                          <TableHead className="text-right">免税额</TableHead>
-                          <TableHead>类型</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {depreciationAllowances.map((item) => (
-                          <TableRow key={item.id}>
-                            <TableCell className="font-medium">{item.category}</TableCell>
-                            <TableCell className="text-right font-mono">
-                              {formatCurrency(item.poolBalance || item.cost || 0)}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="secondary">{item.rate}</Badge>
-                            </TableCell>
-                            <TableCell className="text-right font-mono font-semibold text-success">
-                              {formatCurrency(item.allowance)}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{item.type}</Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                        <TableRow className="bg-muted/30">
-                          <TableCell className="font-semibold">合计免税额</TableCell>
-                          <TableCell colSpan={2} />
-                          <TableCell className="text-right font-mono font-bold text-success">
-                            {formatCurrency(3880000)}
-                          </TableCell>
-                          <TableCell />
-                        </TableRow>
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
               </TabsContent>
             </Tabs>
-          </div>
-
-          {/* AI 面板 */}
-          <div className="space-y-4">
-            <Card hover className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Brain className="w-5 h-5 text-primary" />
-                  AI 调整说明
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {aiAdjustments.map((adj, index) => (
-                  <div
-                    key={index}
-                    className={cn(
-                      'p-3 rounded-lg',
-                      adj.type === 'success' && 'bg-success/5 border border-success/20',
-                      adj.type === 'warning' && 'bg-warning/5 border border-warning/20',
-                      adj.type === 'info' && 'bg-info/5 border border-info/20'
-                    )}
-                  >
-                    <div className="flex items-start gap-2">
-                      {adj.type === 'success' && <CheckCircle2 className="w-4 h-4 text-success mt-0.5" />}
-                      {adj.type === 'warning' && <AlertTriangle className="w-4 h-4 text-warning mt-0.5" />}
-                      {adj.type === 'info' && <Sparkles className="w-4 h-4 text-info mt-0.5" />}
-                      <div>
-                        <p className="font-medium text-sm">{adj.title}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{adj.description}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card hover>
-              <CardHeader>
-                <CardTitle className="text-base">操作</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button className="w-full" onClick={handleCalculate} loading={isCalculating}>
-                  <Calculator className="w-4 h-4 mr-2" />
-                  重新计算
-                </Button>
-                <Button variant="outline" className="w-full">
-                  <Download className="w-4 h-4 mr-2" />
-                  导出计算表
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* 下一步 */}
-        <div className="flex items-center justify-end gap-3">
-          <Button variant="outline">
-            保存计算
-          </Button>
-          <Button>
-            继续 Return 填报
-            <ChevronRight className="w-4 h-4 ml-2" />
-          </Button>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

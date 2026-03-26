@@ -68,7 +68,11 @@ function NotificationItem({
           </span>
           {notification.actionLabel && notification.actionPageId && (
             <button
-              onClick={() => onNavigate?.(notification.actionPageId)}
+              onClick={() => {
+                if (notification.actionPageId) {
+                  onNavigate?.(notification.actionPageId)
+                }
+              }}
               className="text-xs text-primary hover:underline flex items-center gap-1"
             >
               {notification.actionLabel}

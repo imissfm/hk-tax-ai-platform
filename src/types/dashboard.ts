@@ -9,6 +9,8 @@ export interface DashboardStats {
 // ============ 项目进度 ============
 export interface Project {
   id: string
+  groupId: string                 // 所属集团ID
+  entityId?: string               // 所属实体ID（如果是实体级别项目）
   clientName: string              // 客户名称
   projectName: string             // 项目名称 (如: "2024年度税务申报")
   fiscalYear: string              // 财政年度
@@ -52,6 +54,8 @@ export interface RecentAccessItem {
   subtitle?: string
   pageId: string                  // 对应的页面ID (用于导航)
   projectId?: string              // 如果是项目，项目ID
+  groupId?: string                // 所属集团ID
+  entityId?: string               // 所属实体ID
   accessedAt: string
   icon: string                    // lucide-react icon name
 }
@@ -67,6 +71,8 @@ export interface TodoItem {
   priority: 'urgent' | 'high' | 'medium' | 'low'
 
   // 关联信息
+  groupId?: string                // 所属集团ID
+  entityId?: string               // 所属实体ID
   projectId?: string
   projectName?: string
   pageId?: string                 // 点击跳转的页面
@@ -88,6 +94,10 @@ export interface Notification {
   message: string
   createdAt: string
   read: boolean
+
+  // 关联信息（可选）
+  groupId?: string
+  entityId?: string
 
   // 可选操作
   actionLabel?: string

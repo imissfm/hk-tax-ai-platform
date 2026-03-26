@@ -119,7 +119,7 @@ export function PillarTwoPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: 'GloBE 收入', value: formatCurrency(globeCalculation.globeIncome), icon: DollarSign, trend: 'up', color: 'text-primary' },
-            { label: '有效税率 (ETR)', value: formatPercent(globeCalculation.etr), icon: Percent, trend: 'neutral', color: 'text-success' },
+            { label: '有效税率 (ETR)', value: formatPercent(globeCalculation.eTR), icon: Percent, trend: 'neutral', color: 'text-success' },
             { label: 'Top-up Tax', value: formatCurrency(globeCalculation.topUpTax), icon: Calculator, trend: 'down', color: 'text-success' },
             { label: '涉税管辖区', value: '3', icon: Globe, trend: 'neutral', color: 'text-info' },
           ].map((stat) => (
@@ -223,7 +223,7 @@ export function PillarTwoPage() {
                         </div>
                         <div>
                           <p className="text-muted-foreground">有效税率 (ETR)</p>
-                          <p className="font-mono font-semibold text-success">{formatPercent(globeCalculation.etr)}</p>
+                          <p className="font-mono font-semibold text-success">{formatPercent(globeCalculation.eTR)}</p>
                         </div>
                       </div>
                     </div>

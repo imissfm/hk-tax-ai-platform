@@ -15,6 +15,7 @@ const DEFAULT_CONFIG: MatchConfig = {
     low: 0.5,
   },
   requireManualReviewBelow: 0.7,
+  maxCandidates: 5,
 }
 
 const DEFAULT_PREPROCESSING: TextPreprocessingConfig = {

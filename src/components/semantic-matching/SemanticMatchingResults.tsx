@@ -276,7 +276,11 @@ export function SemanticMatchingResults({
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => onApproveMatch?.(result.currentAccountId, result.bestMatch!.previousAccountId)}
+                                onClick={() => {
+                                  if (result.bestMatch?.previousAccountId) {
+                                    onApproveMatch?.(result.currentAccountId, result.bestMatch.previousAccountId)
+                                  }
+                                }}
                               >
                                 <CheckCircle2 className="w-4 h-4 text-success" />
                               </Button>
@@ -323,11 +327,11 @@ export function SemanticMatchingResults({
                               </div>
 
                               {/* 匹配字段 */}
-                              {result.bestMatch.matchedFields.length > 0 && (
+                              {result.bestMatch.matchedFields && result.bestMatch.matchedFields.length > 0 && (
                                 <div>
                                   <p className="text-sm font-medium mb-2">匹配关键词</p>
                                   <div className="flex flex-wrap gap-2">
-                                    {result.bestMatch.matchedFields.map((field, i) => (
+                                    {result.bestMatch.matchedFields.map((field: string, i: number) => (
                                       <Badge key={i} variant="secondary">{field}</Badge>
                                     ))}
                                   </div>
@@ -373,7 +377,6 @@ export function SemanticMatchingResults({
                                 </div>
                               )}
                             </div>
-                          </div>
                         </TableCell>
                       </TableRow>
                     )}
