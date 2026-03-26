@@ -1,0 +1,1 @@
+export { BertMatchingComparison } from './BertMatchingComparison'
