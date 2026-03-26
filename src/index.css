@@ -50,6 +50,24 @@
     /* 动画 */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-fast: all 0.15s ease-out;
+    
+    /* AI 助手色调 - 紫色渐变系 */
+    --ai-primary: 270 70% 60%;
+    --ai-primary-light: 270 70% 75%;
+    --ai-primary-dark: 270 70% 45%;
+    --ai-secondary: 280 60% 50%;
+    --ai-accent: 260 80% 65%;
+    --ai-foreground: 0 0% 100%;
+    
+    /* AI 渐变 */
+    --gradient-ai: linear-gradient(135deg, hsl(270, 70%, 60%), hsl(280, 60%, 50%));
+    --gradient-ai-glow: linear-gradient(135deg, hsl(270, 70%, 70%), hsl(260, 80%, 65%));
+    --gradient-ai-bubble: linear-gradient(135deg, hsl(270, 70%, 55%), hsl(290, 65%, 55%));
+    
+    /* AI 阴影 */
+    --shadow-ai: 0 10px 40px -10px hsl(270, 70%, 60% / 0.35);
+    --shadow-ai-glow: 0 0 50px hsl(270, 70%, 65% / 0.4);
+    --shadow-ai-float: 0 20px 60px -15px hsl(270, 70%, 50% / 0.5);
   }
 
   .dark {
