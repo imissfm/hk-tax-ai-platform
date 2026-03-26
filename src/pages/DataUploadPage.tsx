@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useRef } from 'react'
 import { Header } from '@/components/layout/Header'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -19,57 +19,43 @@ import {
   Sparkles,
   XCircle,
   ChevronRight,
+  Calendar,
+  AlertCircle,
+  History,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-interface UploadedFile {
-  id: string
-  name: string
-  type: 'excel' | 'pdf'
-  size: string
-  status: 'uploading' | 'parsing' | 'mapping' | 'validating' | 'completed' | 'error'
-  progress: number
-  issues?: number
-  records?: number
-}
-
-const mockParsedData = [
-  { id: 1, accountCode: '1001', accountName: '银行存款 - 港币', bookValue: '12,580,000.00', taxValue: '12,580,000.00', status: 'matched', confidence: 99 },
-  { id: 2, accountCode: '1002', accountName: '银行存款 - 美元', bookValue: '8,240,000.00', taxValue: '8,240,000.00', status: 'matched', confidence: 99 },
-  { id: 3, accountCode: '2101', accountName: '应收账款', bookValue: '5,680,000.00', taxValue: '5,420,000.00', status: 'adjusted', confidence: 85 },
-  { id: 4, accountCode: '3101', accountName: '存货', bookValue: '3,200,000.00', taxValue: '3,200,000.00', status: 'matched', confidence: 92 },
-  { id: 5, accountCode: '4001', accountName: '预付款项', bookValue: '450,000.00', taxValue: '400,000.00', status: 'warning', confidence: 78 },
-  { id: 6, accountCode: '5101', accountName: '固定资产 - 机器设备', bookValue: '15,800,000.00', taxValue: '14,200,000.00', status: 'adjusted', confidence: 88 },
-  { id: 7, accountCode: '6101', accountName: '累计折旧', bookValue: '-6,320,000.00', taxValue: '-5,680,000.00', status: 'adjusted', confidence: 91 },
-  { id: 8, accountCode: '7201', accountName: '应付账款', bookValue: '-4,200,000.00', taxValue: '-4,200,000.00', status: 'matched', confidence: 95 },
-  { id: 9, accountCode: '8101', accountName: '工资及薪金', bookValue: '-8,500,000.00', taxValue: '-8,500,000.00', status: 'matched', confidence: 97 },
-  { id: 10, accountCode: '9101', accountName: '租金支出', bookValue: '-2,400,000.00', taxValue: '-2,400,000.00', status: 'matched', confidence: 99 },
-]
-
-const aiInsights = [
-  {
-    type: 'success',
-    title: '科目映射完成',
-    description: '已成功映射 156 个会计科目至税务口径，准确率 97.4%',
-  },
-  {
-    type: 'warning',
-    title: '发现调整项',
-    description: '识别出 12 个需要税务调整的科目，建议复核',
-  },
-  {
-    type: 'info',
-    title: '数据质量良好',
-    description: '数据完整性 99.2%，符合填报要求',
-  },
-]
+import {
+  parseExcelFile,
+  parseCsvFile,
+  detectFileType,
+  formatFileSize,
+  generateId,
+} from '@/lib/fileParser'
+import {
+  logFileUpload,
+  logAudit,
+  getAuditLogsByFileId,
+} from '@/lib/auditLog'
+import type {
+  ParsedFile,
+  ParsedRow,
+  ValidationIssue,
+  YearInfo,
+} from '@/types/file-upload'
 
 export function DataUploadPage() {
-  const [files, setFiles] = useState<UploadedFile[]>([])
+  const [files, setFiles] = useState<ParsedFile[]>([])
   const [isDragging, setIsDragging] = useState(false)
   const [parseProgress, setParseProgress] = useState(0)
-  const [showResults, setShowResults] = useState(true)
+  const [showResults, setShowResults] = useState(false)
+  const [parsingFile, setParsingFile] = useState(false)
+  const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([])
+  const [yearInfo, setYearInfo] = useState<YearInfo | null>(null)
+  const [parsedRows, setParsedRows] = useState<ParsedRow[]>([])
+  const [selectedFileId, setSelectedFileId] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // 拖拽处理
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(true)
@@ -80,31 +66,130 @@ export function DataUploadPage() {
     setIsDragging(false)
   }, [])
 
+  // 文件处理
+  const processFile = async (file: File) => {
+    const fileId = generateId()
+    const fileType = detectFileType(file)
+
+    if (fileType === 'unknown') {
+      alert('不支持的文件格式，请上传 Excel (.xlsx, .xls) 或 CSV 文件')
+      return
+    }
+
+    if (fileType === 'pdf') {
+      alert('PDF 解析功能开发中，请使用 Excel 或 CSV 格式')
+      return
+    }
+
+    // 记录文件上传
+    logFileUpload(file.name, fileId, formatFileSize(file.size), fileType)
+
+    const newFile: ParsedFile = {
+      id: fileId,
+      name: file.name,
+      type: fileType,
+      size: formatFileSize(file.size),
+      status: 'uploading',
+      progress: 0,
+      createdAt: new Date(),
+    }
+
+    setFiles(prev => [...prev, newFile])
+    setParsingFile(true)
+    setShowResults(false)
+
+    try {
+      // 模拟上传进度
+      let uploadProgress = 0
+      const uploadInterval = setInterval(() => {
+        uploadProgress += 20
+        setParseProgress(uploadProgress)
+        setFiles(prev =>
+          prev.map(f =>
+            f.id === fileId ? { ...f, progress: Math.min(uploadProgress, 90) } : f
+          )
+        )
+        if (uploadProgress >= 90) {
+          clearInterval(uploadInterval)
+        }
+      }, 100)
+
+      // 解析文件
+      const result = fileType === 'csv'
+        ? await parseCsvFile(file)
+        : await parseExcelFile(file)
+
+      // 更新文件状态
+      setFiles(prev =>
+        prev.map(f =>
+          f.id === fileId
+            ? {
+                ...f,
+                status: 'completed',
+                progress: 100,
+                records: result.data.length,
+                issues: result.issues.filter(i => i.type === 'warning' || i.type === 'error').length,
+              }
+            : f
+        )
+      )
+
+      // 设置解析结果
+      setParsedRows(result.data)
+      setYearInfo(result.yearInfo || null)
+      setValidationIssues(result.issues)
+      setSelectedFileId(fileId)
+
+      // 记录解析完成
+      logAudit('FILE_PARSE', {
+        fileId,
+        fileName: file.name,
+        recordCount: result.data.length,
+        issueCount: result.issues.length,
+        yearDetected: result.yearInfo?.sourceYear,
+        yearTarget: result.yearInfo?.targetYear,
+      })
+
+      clearInterval(uploadInterval)
+      setParseProgress(100)
+      setShowResults(true)
+
+    } catch (error) {
+      console.error('文件解析错误:', error)
+      setFiles(prev =>
+        prev.map(f =>
+          f.id === fileId
+            ? { ...f, status: 'error' }
+            : f
+        )
+      )
+      alert(`文件解析失败: ${error instanceof Error ? error.message : '未知错误'}`)
+    } finally {
+      setParsingFile(false)
+    }
+  }
+
+  // 拖拽上传
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(false)
-    // Simulate file upload
-    const newFile: UploadedFile = {
-      id: Date.now().toString(),
-      name: 'FY2024_Trial_Balance.xlsx',
-      type: 'excel',
-      size: '2.4 MB',
-      status: 'uploading',
-      progress: 0,
-    }
-    setFiles([newFile])
 
-    // Simulate upload progress
-    let progress = 0
-    const interval = setInterval(() => {
-      progress += 10
-      setParseProgress(progress)
-      if (progress >= 100) {
-        clearInterval(interval)
-        setShowResults(true)
-      }
-    }, 300)
+    const droppedFiles = Array.from(e.dataTransfer.files)
+    if (droppedFiles.length > 0) {
+      processFile(droppedFiles[0])
+    }
   }, [])
+
+  // 点击上传
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(e.target.files || [])
+    if (selectedFiles.length > 0) {
+      processFile(selectedFiles[0])
+    }
+  }
+
+  // 获取操作历史
+  const auditLogs = selectedFileId ? getAuditLogsByFileId(selectedFileId) : []
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -127,15 +212,28 @@ export function DataUploadPage() {
         return <Badge variant="warning">已调整</Badge>
       case 'warning':
         return <Badge variant="destructive">需复核</Badge>
+      case 'new-account':
+        return <Badge variant="info">新业务</Badge>
       default:
         return null
+    }
+  }
+
+  const getIssueIcon = (type: string) => {
+    switch (type) {
+      case 'error':
+        return <XCircle className="w-4 h-4 text-destructive" />
+      case 'warning':
+        return <AlertTriangle className="w-4 h-4 text-warning" />
+      default:
+        return <AlertCircle className="w-4 h-4 text-info" />
     }
   }
 
   return (
     <div className="min-h-screen">
       <Header
-        title="数据上传与 AI 智能解析"
+        title="数据上传与解析"
         subtitle="上传财务报表，AI 自动识别、映射、清洗数据"
       />
 
@@ -150,14 +248,16 @@ export function DataUploadPage() {
                   上传财务文件
                 </CardTitle>
                 <CardDescription>
-                  支持 Excel (.xlsx, .xls)、PDF 格式的试算表、财务报表
+                  支持 Excel (.xlsx, .xls)、CSV 格式的试算表、财务报表
                 </CardDescription>
               </CardHeader>
               <CardContent>
+                {/* 拖拽区域 */}
                 <div
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
                   className={cn(
                     'border-2 border-dashed rounded-xl p-12 text-center transition-all duration-300 cursor-pointer',
                     isDragging
@@ -165,6 +265,13 @@ export function DataUploadPage() {
                       : 'border-border hover:border-primary/50 hover:bg-muted/30'
                   )}
                 >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".xlsx,.xls,.csv"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
                   <div className="flex flex-col items-center gap-4">
                     <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
                       <UploadCloud className="w-8 h-8 text-primary" />
@@ -178,13 +285,13 @@ export function DataUploadPage() {
                       </p>
                     </div>
                     <div className="flex items-center gap-3 mt-2">
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); }}>
                         <FileSpreadsheet className="w-4 h-4 mr-2" />
                         选择 Excel
                       </Button>
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); }}>
                         <FileText className="w-4 h-4 mr-2" />
-                        选择 PDF
+                        选择 CSV
                       </Button>
                     </div>
                   </div>
@@ -196,22 +303,44 @@ export function DataUploadPage() {
                     {files.map((file) => (
                       <div
                         key={file.id}
-                        className="flex items-center gap-4 p-4 rounded-lg bg-muted/50 border border-border"
+                        className={cn(
+                          'flex items-center gap-4 p-4 rounded-lg border',
+                          file.status === 'error' ? 'bg-destructive/5 border-destructive/20' : 'bg-muted/50 border-border'
+                        )}
                       >
                         <FileSpreadsheet className="w-8 h-8 text-primary" />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between">
                             <p className="font-medium truncate">{file.name}</p>
-                            <Badge variant="secondary">{file.size}</Badge>
-                          </div>
-                          <div className="mt-2">
-                            <div className="flex items-center justify-between text-sm text-muted-foreground mb-1">
-                              <span>AI 正在解析...</span>
-                              <span>{parseProgress}%</span>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary">{file.size}</Badge>
+                              {file.status === 'completed' && (
+                                <Badge variant="success">{file.records} 条记录</Badge>
+                              )}
                             </div>
-                            <Progress value={parseProgress} />
                           </div>
+                          {file.status !== 'completed' && file.status !== 'error' && (
+                            <div className="mt-2">
+                              <div className="flex items-center justify-between text-sm text-muted-foreground mb-1">
+                                <span>
+                                  {file.status === 'uploading' && '上传中...'}
+                                  {file.status === 'parsing' && 'AI 正在解析...'}
+                                </span>
+                                <span>{file.progress}%</span>
+                              </div>
+                              <Progress value={file.progress} />
+                            </div>
+                          )}
+                          {file.status === 'error' && (
+                            <p className="text-sm text-destructive mt-1">解析失败，请检查文件格式</p>
+                          )}
                         </div>
+                        {file.status === 'completed' && (
+                          <CheckCircle2 className="w-6 h-6 text-success" />
+                        )}
+                        {file.status === 'error' && (
+                          <XCircle className="w-6 h-6 text-destructive" />
+                        )}
                       </div>
                     ))}
                   </div>
@@ -220,8 +349,9 @@ export function DataUploadPage() {
             </Card>
           </div>
 
-          {/* AI 状态面板 */}
+          {/* 右侧面板 */}
           <div className="space-y-4">
+            {/* AI 状态面板 */}
             <Card hover className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -231,68 +361,142 @@ export function DataUploadPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-3">
-                  {[
-                    { label: '文件解析', status: 'completed', time: '2.3s' },
-                    { label: '科目识别', status: 'completed', time: '1.8s' },
-                    { label: '税务映射', status: 'completed', time: '3.1s' },
-                    { label: '数据清洗', status: 'completed', time: '1.5s' },
-                    { label: '质量校验', status: 'completed', time: '0.9s' },
-                  ].map((step, index) => (
-                    <div key={step.label} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-success" />
-                        <span className="text-sm">{step.label}</span>
-                      </div>
-                      <span className="text-xs text-muted-foreground">{step.time}</span>
+                  {parsingFile ? (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                      <span>正在解析...</span>
                     </div>
-                  ))}
-                </div>
-                <div className="pt-3 border-t border-border">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">总耗时</span>
-                    <span className="font-medium text-primary">9.6 秒</span>
-                  </div>
+                  ) : (
+                    [
+                      { label: '文件解析', status: parseProgress >= 30 ? 'completed' : 'pending', time: '2.3s' },
+                      { label: '科目识别', status: parseProgress >= 50 ? 'completed' : 'pending', time: '1.8s' },
+                      { label: '年份替换', status: parseProgress >= 70 ? 'completed' : 'pending', time: '0.5s' },
+                      { label: '数据清洗', status: parseProgress >= 90 ? 'completed' : 'pending', time: '1.5s' },
+                      { label: '质量校验', status: parseProgress >= 100 ? 'completed' : 'pending', time: '0.9s' },
+                    ].map((step) => (
+                      <div key={step.label} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {step.status === 'completed' ? (
+                            <CheckCircle2 className="w-4 h-4 text-success" />
+                          ) : (
+                            <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/30" />
+                          )}
+                          <span className="text-sm">{step.label}</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground">{step.time}</span>
+                      </div>
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>
 
-            {/* AI 洞察 */}
-            <Card hover>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Sparkles className="w-5 h-5 text-primary" />
-                  AI 洞察
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {aiInsights.map((insight, index) => (
-                  <div
-                    key={index}
-                    className={cn(
-                      'p-3 rounded-lg text-sm',
-                      insight.type === 'success' && 'bg-success/5 border border-success/20',
-                      insight.type === 'warning' && 'bg-warning/5 border border-warning/20',
-                      insight.type === 'info' && 'bg-info/5 border border-info/20'
-                    )}
-                  >
-                    <div className="flex items-start gap-2">
-                      {insight.type === 'success' && <CheckCircle2 className="w-4 h-4 text-success mt-0.5" />}
-                      {insight.type === 'warning' && <AlertTriangle className="w-4 h-4 text-warning mt-0.5" />}
-                      {insight.type === 'info' && <Eye className="w-4 h-4 text-info mt-0.5" />}
-                      <div>
-                        <p className="font-medium">{insight.title}</p>
-                        <p className="text-muted-foreground text-xs mt-0.5">{insight.description}</p>
-                      </div>
+            {/* 年份信息 */}
+            {yearInfo && (
+              <Card hover>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Calendar className="w-5 h-5 text-primary" />
+                    年份检测
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                    <div>
+                      <p className="text-sm text-muted-foreground">源年份</p>
+                      <p className="font-medium">{yearInfo.sourceYear}</p>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">目标年份</p>
+                      <p className="font-medium text-primary">{yearInfo.targetYear}</p>
                     </div>
                   </div>
-                ))}
-              </CardContent>
-            </Card>
+                  <div className="mt-3 flex items-center gap-2">
+                    <Badge variant={yearInfo.confidence >= 0.9 ? 'success' : 'warning'}>
+                      置信度 {(yearInfo.confidence * 100).toFixed(0)}%
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {yearInfo.fiscalYearType === 'HK' ? '香港财政年度' : '其他'}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 操作历史 */}
+            {auditLogs.length > 0 && (
+              <Card hover>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <History className="w-5 h-5 text-muted-foreground" />
+                    操作留痕
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {auditLogs.slice(-5).reverse().map((log) => (
+                      <div key={log.id} className="text-xs p-2 rounded bg-muted/30">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">{log.action}</span>
+                          <span className="text-muted-foreground">
+                            {new Date(log.timestamp).toLocaleTimeString('zh-CN')}
+                          </span>
+                        </div>
+                        {log.details.reason && (
+                          <p className="text-muted-foreground mt-1">{log.details.reason}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
 
+        {/* 校验问题提示 */}
+        {validationIssues.length > 0 && (
+          <Card hover className="border-warning/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <AlertTriangle className="w-5 h-5 text-warning" />
+                需要关注 ({validationIssues.length} 项)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-2">
+                  {validationIssues.map((issue) => (
+                    <div
+                      key={issue.id}
+                      className={cn(
+                        'flex items-start gap-3 p-3 rounded-lg',
+                        issue.type === 'error' && 'bg-destructive/5',
+                        issue.type === 'warning' && 'bg-warning/5',
+                        issue.type === 'info' && 'bg-info/5'
+                      )}
+                    >
+                      {getIssueIcon(issue.type)}
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">{issue.message}</p>
+                        {issue.suggestion && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {issue.suggestion}
+                          </p>
+                        )}
+                      </div>
+                      {issue.requiresManualReview && (
+                        <Badge variant="warning">需人工</Badge>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+          </Card>
+        )}
+
         {/* 解析结果 */}
-        {showResults && (
+        {showResults && parsedRows.length > 0 && (
           <Card hover>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -302,7 +506,7 @@ export function DataUploadPage() {
                     AI 解析结果 - 科目映射表
                   </CardTitle>
                   <CardDescription className="mt-1">
-                    已自动识别并映射 156 个会计科目，其中 12 个需要税务调整
+                    已自动识别并映射 {parsedRows.length} 个会计科目
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
@@ -331,7 +535,7 @@ export function DataUploadPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {mockParsedData.map((row) => (
+                  {parsedRows.slice(0, 20).map((row) => (
                     <TableRow key={row.id}>
                       <TableCell className="font-mono text-sm">{row.accountCode}</TableCell>
                       <TableCell>{row.accountName}</TableCell>
@@ -364,14 +568,20 @@ export function DataUploadPage() {
                 </TableBody>
               </Table>
 
+              {parsedRows.length > 20 && (
+                <p className="text-sm text-muted-foreground text-center mt-4">
+                  显示前 20 条，共 {parsedRows.length} 条记录
+                </p>
+              )}
+
               {/* 汇总信息 */}
               <div className="mt-6 grid grid-cols-4 gap-4">
                 {[
-                  { label: '总科目数', value: '156', icon: FileSpreadsheet, color: 'text-primary' },
-                  { label: '已匹配', value: '144', icon: CheckCircle2, color: 'text-success' },
-                  { label: '已调整', value: '10', icon: RefreshCw, color: 'text-warning' },
-                  { label: '需复核', value: '2', icon: AlertTriangle, color: 'text-destructive' },
-                ].map((stat, index) => (
+                  { label: '总科目数', value: parsedRows.length, icon: FileSpreadsheet, color: 'text-primary' },
+                  { label: '已匹配', value: parsedRows.filter(r => r.status === 'matched').length, icon: CheckCircle2, color: 'text-success' },
+                  { label: '已调整', value: parsedRows.filter(r => r.status === 'adjusted').length, icon: RefreshCw, color: 'text-warning' },
+                  { label: '需复核', value: parsedRows.filter(r => r.status === 'warning' || r.status === 'new-account').length, icon: AlertTriangle, color: 'text-destructive' },
+                ].map((stat) => (
                   <div key={stat.label} className="p-4 rounded-lg bg-muted/30 border border-border">
                     <div className="flex items-center gap-2 text-muted-foreground mb-2">
                       <stat.icon className={cn('w-4 h-4', stat.color)} />
@@ -390,7 +600,7 @@ export function DataUploadPage() {
           <Button variant="outline">
             保存草稿
           </Button>
-          <Button>
+          <Button disabled={!showResults}>
             开始 Pillar Two 计算
             <ChevronRight className="w-4 h-4 ml-2" />
           </Button>
