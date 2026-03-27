@@ -10,6 +10,7 @@ import { ExportPage } from '@/pages/ExportPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AppProvider } from '@/context/AppContext'
+import { AIAssistant } from '@/components/ai-assistant/AIAssistant'
 
 function App() {
   const [currentPage, setCurrentPage] = useState('dashboard')
@@ -57,6 +58,7 @@ function App() {
           <PageLayout sidebarCollapsed={sidebarCollapsed}>
             {renderPage()}
           </PageLayout>
+          <AIAssistant onNavigate={handleNavigate} />
         </div>
       </TooltipProvider>
     </AppProvider>

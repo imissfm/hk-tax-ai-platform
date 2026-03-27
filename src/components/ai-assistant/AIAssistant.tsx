@@ -179,13 +179,17 @@ export function AIAssistant({ onNavigate, onSearch }: AIAssistantProps) {
           'transition-all duration-500 ease-out',
           'hover:scale-110 active:scale-95',
           'group',
-          isOpen 
-            ? 'right-[420px] bottom-6' 
+          isOpen
+            ? 'right-[420px] bottom-6'
             : 'right-6 bottom-6'
         )}
         style={{
-          background: isOpen ? 'hsl(var(--background))' : 'var(--gradient-ai-bubble)',
-          boxShadow: isOpen ? 'var(--shadow-card)' : 'var(--shadow-ai-float)',
+          background: isOpen
+            ? 'hsl(var(--background))'
+            : 'rgba(80, 80, 80, 0.75)',
+          boxShadow: isOpen
+            ? 'var(--shadow-card)'
+            : '0 4px 20px rgba(0, 0, 0, 0.3)',
         }}
       >
         {isOpen ? (
@@ -193,15 +197,15 @@ export function AIAssistant({ onNavigate, onSearch }: AIAssistantProps) {
         ) : (
           <div className="relative">
             <MessageCircle className="w-6 h-6 text-white" />
-            <Sparkles className="w-3 h-3 text-white absolute -top-1 -right-1 animate-pulse" />
+            <Sparkles className="w-3 h-3 text-white/80 absolute -top-1 -right-1 animate-pulse" />
           </div>
         )}
-        
+
         {/* 脉冲动画 */}
         {!isOpen && (
-          <span 
-            className="absolute inset-0 rounded-full animate-ping opacity-25"
-            style={{ background: 'var(--gradient-ai-bubble)' }}
+          <span
+            className="absolute inset-0 rounded-full animate-ping opacity-20"
+            style={{ background: 'hsl(0, 0%, 40% / 0.4)' }}
           />
         )}
       </button>
@@ -218,9 +222,9 @@ export function AIAssistant({ onNavigate, onSearch }: AIAssistantProps) {
         )}
       >
         {/* 头部 */}
-        <div 
+        <div
           className="flex-shrink-0 p-4 border-b border-border"
-          style={{ background: 'var(--gradient-ai)' }}
+          style={{ background: 'linear-gradient(135deg, hsl(0, 0%, 45%), hsl(0, 0%, 35%))' }}
         >
           <div className="flex items-center gap-3 text-white">
             <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">

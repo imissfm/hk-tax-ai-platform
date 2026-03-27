@@ -51,23 +51,23 @@
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-fast: all 0.15s ease-out;
     
-    /* AI 助手色调 - 紫色渐变系 */
-    --ai-primary: 270 70% 60%;
-    --ai-primary-light: 270 70% 75%;
-    --ai-primary-dark: 270 70% 45%;
-    --ai-secondary: 280 60% 50%;
-    --ai-accent: 260 80% 65%;
+    /* AI 助手色调 - 中性灰色系 */
+    --ai-primary: 0 0% 45%;
+    --ai-primary-light: 0 0% 60%;
+    --ai-primary-dark: 0 0% 30%;
+    --ai-secondary: 0 0% 50%;
+    --ai-accent: 0 0% 55%;
     --ai-foreground: 0 0% 100%;
-    
-    /* AI 渐变 */
-    --gradient-ai: linear-gradient(135deg, hsl(270, 70%, 60%), hsl(280, 60%, 50%));
-    --gradient-ai-glow: linear-gradient(135deg, hsl(270, 70%, 70%), hsl(260, 80%, 65%));
-    --gradient-ai-bubble: linear-gradient(135deg, hsl(270, 70%, 55%), hsl(290, 65%, 55%));
-    
+
+    /* AI 渐变 - 灰色系 */
+    --gradient-ai: linear-gradient(135deg, hsl(0, 0%, 45%), hsl(0, 0%, 35%));
+    --gradient-ai-glow: linear-gradient(135deg, hsl(0, 0%, 55%), hsl(0, 0%, 45%));
+    --gradient-ai-bubble: linear-gradient(135deg, hsl(0, 0%, 40%), hsl(0, 0%, 30%));
+
     /* AI 阴影 */
-    --shadow-ai: 0 10px 40px -10px hsl(270, 70%, 60% / 0.35);
-    --shadow-ai-glow: 0 0 50px hsl(270, 70%, 65% / 0.4);
-    --shadow-ai-float: 0 20px 60px -15px hsl(270, 70%, 50% / 0.5);
+    --shadow-ai: 0 10px 40px -10px hsl(0, 0%, 45% / 0.25);
+    --shadow-ai-glow: 0 0 50px hsl(0, 0%, 50% / 0.2);
+    --shadow-ai-float: 0 20px 60px -15px hsl(0, 0%, 40% / 0.3);
   }
 
   .dark {
