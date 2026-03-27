@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Header } from '@/components/layout/Header'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -11,15 +11,22 @@ import {
   AlertTriangle,
   Download,
   ChevronRight,
+  ChevronDown,
   Edit3,
   Save,
   Tag,
   Wand2,
   FileSpreadsheet,
   Table2,
+  FileText,
+  FolderOpen,
+  File,
+  Eye,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Spreadsheet, SpreadsheetCell } from '@/components/ui/Spreadsheet'
+import { FortuneSheet } from '@/components/ui/FortuneSheet'
+import { getProfitsTaxSheetData, profitsTaxNavTree, type NavTreeItem } from '@/data/profitsTaxTemplate'
 
 const validationResults = [
   { type: 'success', message: '所有必填字段已完成' },
@@ -137,32 +144,54 @@ const pillarRows: SpreadsheetCell[][] = [
   [{ value: 'Top-up Tax', bold: true, bg: '#f0fdf4' }, { value: '0', align: 'right', color: '#16a34a', bold: true, bg: '#f0fdf4' }, { value: '无需补税', color: '#16a34a', bg: '#f0fdf4' }, { value: '=MAX(0,15%-ETR)*B8', italic: true, color: '#9333ea', bg: '#f0fdf4' }],
 ]
 
-// 利得税数据
-const profitsHeaders = ['项目', '金额 (HKD)', '说明']
-const profitsWidths = [200, 180, 220]
-const profitsRows: SpreadsheetCell[][] = [
-  [{ value: '营业额', bold: true }, { value: '125,000,000', align: 'right', color: '#0369a1' }, { value: '总营业收入', color: '#64748b' }],
-  [{ value: '销货成本' }, { value: '(85,000,000)', align: 'right', color: '#dc2626' }, { value: '直接成本', color: '#64748b' }],
-  [{ value: '毛利', bold: true, bg: '#eff6ff' }, { value: '40,000,000', align: 'right', color: '#0369a1', bold: true, bg: '#eff6ff' }, { value: '=营业额-销货成本', color: '#64748b', bg: '#eff6ff' }],
-  [{ value: '经营费用' }, { value: '(20,000,000)', align: 'right', color: '#dc2626' }, { value: '行政、销售等费用', color: '#64748b' }],
-  [{ value: '折旧及摊销' }, { value: '(3,000,000)', align: 'right', color: '#dc2626' }, { value: '非现金支出', color: '#64748b' }],
-  [{ value: '利息支出' }, { value: '(500,000)', align: 'right', color: '#dc2626' }, { value: '融资成本', color: '#64748b' }],
-  [{ value: '其他收入' }, { value: '500,000', align: 'right', color: '#16a34a' }, { value: '利息、租金等', color: '#64748b' }],
-  [{ value: '税前利润', bold: true, bg: '#eff6ff' }, { value: '17,000,000', align: 'right', color: '#0369a1', bold: true, bg: '#eff6ff' }, { value: '会计利润', color: '#64748b', bg: '#eff6ff' }],
-  [{ value: '不可扣除项目' }, { value: '(2,100,000)', align: 'right', color: '#dc2626' }, { value: '罚款、娱乐费等', color: '#64748b' }],
-  [{ value: '免税收入' }, { value: '(1,000,000)', align: 'right', color: '#dc2626' }, { value: '离岸收入', color: '#64748b' }],
-  [{ value: '应评税利润', bold: true, bg: '#fff7ed' }, { value: '13,900,000', align: 'right', color: '#c2410c', bold: true, bg: '#fff7ed' }, { value: '计税基础', color: '#c2410c', bg: '#fff7ed' }],
-  [{ value: '', bg: '#f8fafc' }, { value: '', bg: '#f8fafc' }, { value: '', bg: '#f8fafc' }],
-  [{ value: '【税款计算】', bold: true, bg: '#f8fafc' }, { value: '', bg: '#f8fafc' }, { value: '', bg: '#f8fafc' }],
-  [{ value: '首 HKD 2,000,000' }, { value: '165,000', align: 'right', color: '#16a34a' }, { value: '@ 8.25% 优惠税率', color: '#64748b' }],
-  [{ value: '余额 HKD 11,900,000' }, { value: '1,963,500', align: 'right', color: '#0369a1' }, { value: '@ 16.5% 标准税率', color: '#64748b' }],
-  [{ value: '应缴税款总额', bold: true, bg: '#fef3c7' }, { value: '2,128,500', align: 'right', color: '#c2410c', bold: true, bg: '#fef3c7' }, { value: '本年度税款', bold: true, bg: '#fef3c7' }],
-]
-
 export function ReturnFillingPage() {
   const [activeTab, setActiveTab] = useState('form')
   const [isAutoFilling, setIsAutoFilling] = useState(false)
   const [fillProgress, setFillProgress] = useState(100)
+  const [activeNavId, setActiveNavId] = useState('page-1')
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set(['profits-tax', 'tax-analysis']))
+
+  const profitsTaxData = useMemo(() => getProfitsTaxSheetData(), [])
+
+  const toggleExpand = (id: string) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const renderNavTree = (items: NavTreeItem[], depth = 0) => {
+    return items.map(item => (
+      <div key={item.id}>
+        <button
+          onClick={() => {
+            if (item.children) toggleExpand(item.id)
+            else setActiveNavId(item.id)
+          }}
+          className={cn(
+            'w-full flex items-center gap-1.5 px-2 py-1.5 text-xs rounded hover:bg-muted/50 transition-colors text-left',
+            activeNavId === item.id && 'bg-primary/10 text-primary font-medium',
+            item.active && activeNavId !== item.id && 'font-medium',
+          )}
+          style={{ paddingLeft: `${depth * 16 + 8}px` }}
+        >
+          {item.children ? (
+            expandedIds.has(item.id)
+              ? <ChevronDown className="w-3 h-3 flex-shrink-0 text-muted-foreground" />
+              : <ChevronRight className="w-3 h-3 flex-shrink-0 text-muted-foreground" />
+          ) : (
+            <File className="w-3 h-3 flex-shrink-0 text-muted-foreground" />
+          )}
+          <span className="truncate">{item.label}</span>
+        </button>
+        {item.children && expandedIds.has(item.id) && (
+          <div>{renderNavTree(item.children, depth + 1)}</div>
+        )}
+      </div>
+    ))
+  }
 
   const handleAutoFill = () => {
     setIsAutoFilling(true)
@@ -254,13 +283,47 @@ export function ReturnFillingPage() {
               </TabsContent>
 
               <TabsContent value="profitsTax" className="mt-4">
-                <Spreadsheet
-                  title="香港利得税计算"
-                  headers={profitsHeaders}
-                  rows={profitsRows}
-                  columnWidths={profitsWidths}
-                  height={460}
-                />
+                <div className="flex gap-0 border border-border rounded-lg overflow-hidden" style={{ height: 600 }}>
+                  {/* 左侧树形导航 */}
+                  <div className="w-[200px] flex-shrink-0 border-r border-border bg-muted/20 overflow-y-auto">
+                    <div className="p-2 border-b border-border">
+                      <p className="text-xs font-semibold text-muted-foreground px-2 py-1">Profits Tax Computation</p>
+                    </div>
+                    <div className="p-1 space-y-0.5">
+                      {renderNavTree(profitsTaxNavTree)}
+                    </div>
+                  </div>
+                  {/* 右侧 FortuneSheet 区域 */}
+                  <div className="flex-1 flex flex-col min-w-0">
+                    {/* 顶部状态栏 */}
+                    <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/10">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                          <CheckCircle2 className="w-3 h-3 mr-1" />
+                          Template has been updated
+                        </Badge>
+                      </div>
+                      <Button size="sm" className="bg-primary hover:bg-primary/90 text-white text-xs h-7">
+                        <Eye className="w-3 h-3 mr-1" />
+                        Preview tax return
+                      </Button>
+                    </div>
+                    {/* FortuneSheet */}
+                    <div className="flex-1 relative">
+                      {activeTab === 'profitsTax' && (
+                        <FortuneSheet
+                          data={profitsTaxData}
+                          height={520}
+                          width="100%"
+                          showToolbar={true}
+                          showFormulaBar={false}
+                          showSheetTabs={false}
+                          allowEdit={true}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
               </TabsContent>
 
               <TabsContent value="ixbrl" className="mt-4">
