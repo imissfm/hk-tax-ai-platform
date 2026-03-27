@@ -348,12 +348,12 @@ export function ReturnFillingPage() {
                       </div>
                     </div>
                     {/* FortuneSheet */}
-                    <div className="flex-1 relative">
+                    <div className="flex-1 relative min-h-0">
                       {activeTab === 'profitsTax' && (
                         <FortuneSheet
                           key={activeNavId}
                           data={profitsTaxData}
-                          height={isFullscreen ? 'calc(100vh - 48px)' : 520}
+                          height="100%"
                           width="100%"
                           showToolbar={true}
                           showFormulaBar={false}
