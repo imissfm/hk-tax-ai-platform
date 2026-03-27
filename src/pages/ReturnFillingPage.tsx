@@ -22,6 +22,8 @@ import {
   FolderOpen,
   File,
   Eye,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Spreadsheet, SpreadsheetCell } from '@/components/ui/Spreadsheet'
@@ -150,8 +152,19 @@ export function ReturnFillingPage() {
   const [fillProgress, setFillProgress] = useState(100)
   const [activeNavId, setActiveNavId] = useState('page-1')
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set(['profits-tax', 'tax-analysis']))
+  const [isFullscreen, setIsFullscreen] = useState(false)
 
-  const profitsTaxData = useMemo(() => getProfitsTaxSheetData(), [])
+  // 根据 activeNavId 获取对应的数据
+  const profitsTaxData = useMemo(() => {
+    const sheets = getProfitsTaxSheetData()
+    return sheets.map(sheet => ({
+      ...sheet,
+      name: activeNavId === 'page-1' ? 'Page 1' : 
+            activeNavId === 'page-2' ? 'Page 2' :
+            activeNavId === 'page-3' ? 'Page 3' :
+            activeNavId === 'page-4' ? 'Page 4' : sheet.name,
+    }))
+  }, [activeNavId])
 
   const toggleExpand = (id: string) => {
     setExpandedIds(prev => {
@@ -283,9 +296,15 @@ export function ReturnFillingPage() {
               </TabsContent>
 
               <TabsContent value="profitsTax" className="mt-4">
-                <div className="flex gap-0 border border-border rounded-lg overflow-hidden" style={{ height: 600 }}>
+                <div className={cn(
+                  "flex gap-0 border border-border rounded-lg overflow-hidden",
+                  isFullscreen && "fixed inset-0 z-50 bg-background rounded-none"
+                )} style={{ height: isFullscreen ? '100vh' : 600 }}>
                   {/* 左侧树形导航 */}
-                  <div className="w-[200px] flex-shrink-0 border-r border-border bg-muted/20 overflow-y-auto">
+                  <div className={cn(
+                    "flex-shrink-0 border-r border-border bg-muted/20 overflow-y-auto",
+                    isFullscreen ? "w-[280px]" : "w-[200px]"
+                  )}>
                     <div className="p-2 border-b border-border">
                       <p className="text-xs font-semibold text-muted-foreground px-2 py-1">Profits Tax Computation</p>
                     </div>
@@ -303,17 +322,38 @@ export function ReturnFillingPage() {
                           Template has been updated
                         </Badge>
                       </div>
-                      <Button size="sm" className="bg-primary hover:bg-primary/90 text-white text-xs h-7">
-                        <Eye className="w-3 h-3 mr-1" />
-                        Preview tax return
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" className="bg-primary hover:bg-primary/90 text-white text-xs h-7">
+                          <Eye className="w-3 h-3 mr-1" />
+                          Preview tax return
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          className="text-xs h-7"
+                          onClick={() => setIsFullscreen(!isFullscreen)}
+                        >
+                          {isFullscreen ? (
+                            <>
+                              <Minimize2 className="w-3 h-3 mr-1" />
+                              还原
+                            </>
+                          ) : (
+                            <>
+                              <Maximize2 className="w-3 h-3 mr-1" />
+                              全屏
+                            </>
+                          )}
+                        </Button>
+                      </div>
                     </div>
                     {/* FortuneSheet */}
                     <div className="flex-1 relative">
                       {activeTab === 'profitsTax' && (
                         <FortuneSheet
+                          key={activeNavId}
                           data={profitsTaxData}
-                          height={520}
+                          height={isFullscreen ? 'calc(100vh - 48px)' : 520}
                           width="100%"
                           showToolbar={true}
                           showFormulaBar={false}
