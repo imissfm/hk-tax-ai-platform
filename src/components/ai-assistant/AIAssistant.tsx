@@ -3,14 +3,11 @@ import {
   MessageCircle,
   X,
   Send,
-  Search,
-  Navigation,
   FileText,
   Calculator,
   Database,
   HelpCircle,
   Sparkles,
-  ChevronRight,
   Loader2,
   Bot,
   User,
@@ -19,6 +16,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ChatMessage, ChatAction, AISuggestion } from '@/types/ai-assistant'
+import { zhipuService } from '@/lib/zhipuService'
 
 interface AIAssistantProps {
   onNavigate?: (pageId: string) => void
@@ -65,48 +63,57 @@ export function AIAssistant({ onNavigate, onSearch }: AIAssistantProps) {
     }
   }, [isOpen])
 
-  // 模拟 AI 响应
-  const simulateAIResponse = useCallback((userMessage: string) => {
+  // 调用真实 AI 响应
+  const getAIResponse = useCallback(async (userMessage: string) => {
     setIsTyping(true)
-    
-    setTimeout(() => {
-      let response = ''
+
+    try {
+      // 构建消息历史（只保留最近几条）
+      const chatHistory = messages
+        .filter(m => m.id !== 'welcome')
+        .slice(-6)
+        .map(m => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+        }))
+
+      // 添加当前用户消息
+      chatHistory.push({ role: 'user', content: userMessage })
+
+      // 调用智普 AI
+      const response = await zhipuService.chat(chatHistory)
+
+      // 解析响应，提取操作按钮
       const actions: ChatMessage['actions'] = []
-      
       const lowerMsg = userMessage.toLowerCase()
-      
+
+      // 根据用户消息添加快捷操作
       if (lowerMsg.includes('利得税') || lowerMsg.includes('profits tax')) {
-        response = '利得税是香港对在本港经营业务的公司征收的税项，税率为 16.5%。我可以帮您：\n\n1. 导航到利得税计算页面\n2. 查询利得税相关法规\n3. 分析当前项目的利得税数据'
         actions.push({
           type: 'navigate',
           label: '前往利得税计算',
           data: { pageId: 'profits-tax' },
         })
-      } else if (lowerMsg.includes('支柱二') || lowerMsg.includes('pillar two') || lowerMsg.includes('globe')) {
-        response = '支柱二是 OECD 制定的全球最低税率框架，确保大型跨国企业至少缴纳 15% 的有效税率。香港已通过 HKMTT 立法。\n\n我可以帮您：\n\n1. 计算 GloBE 收入和 Top-up Tax\n2. 查看相关法规条款\n3. 分析集团适用性'
+      } else if (lowerMsg.includes('支柱二') || lowerMsg.includes('pillar two')) {
         actions.push({
           type: 'navigate',
-          label: '前往 Pillar Two 计算',
+          label: '前往 Pillar Two',
           data: { pageId: 'pillar-two' },
         })
       } else if (lowerMsg.includes('xbrl')) {
-        response = 'XBRL（可扩展商业报告语言）是一种标准化的财务数据报告格式。香港税务局要求特定纳税人使用 XBRL 格式提交报税表。\n\n相关功能：\n\n• Return 自动填报\n• 数据导出与交付'
         actions.push({
           type: 'navigate',
           label: '前往 Return 填报',
           data: { pageId: 'return-filling' },
         })
       } else if (lowerMsg.includes('数据') || lowerMsg.includes('上传')) {
-        response = '数据上传模块支持 Excel、CSV 和 PDF 格式的财务报表导入。AI 会自动解析科目映射并进行年份替换。\n\n需要我带您前往数据上传页面吗？'
         actions.push({
           type: 'navigate',
           label: '前往数据上传',
           data: { pageId: 'upload' },
         })
-      } else {
-        response = '我理解您的问题。作为税务 AI 助手，我可以帮您查询法规、导航页面、筛选数据等。\n\n您可以尝试问我：\n\n• "利得税计算方法"\n• "支柱二法规解读"\n• "查看项目数据"'
       }
-      
+
       const aiMessage: ChatMessage = {
         id: `ai-${Date.now()}`,
         role: 'assistant',
@@ -114,11 +121,21 @@ export function AIAssistant({ onNavigate, onSearch }: AIAssistantProps) {
         timestamp: new Date(),
         actions,
       }
-      
+
       setMessages(prev => [...prev, aiMessage])
+    } catch (error) {
+      console.error('AI 响应失败:', error)
+      const errorMessage: ChatMessage = {
+        id: `ai-${Date.now()}`,
+        role: 'assistant',
+        content: '抱歉，AI 服务暂时不可用，请稍后再试。',
+        timestamp: new Date(),
+      }
+      setMessages(prev => [...prev, errorMessage])
+    } finally {
       setIsTyping(false)
-    }, 1500)
-  }, [])
+    }
+  }, [messages])
 
   // 发送消息
   const handleSend = useCallback(() => {
@@ -130,13 +147,13 @@ export function AIAssistant({ onNavigate, onSearch }: AIAssistantProps) {
       content: inputValue.trim(),
       timestamp: new Date(),
     }
-    
+
     setMessages(prev => [...prev, userMessage])
     setInputValue('')
     setSuggestions([])
-    
-    simulateAIResponse(inputValue.trim())
-  }, [inputValue, simulateAIResponse])
+
+    getAIResponse(inputValue.trim())
+  }, [inputValue, getAIResponse])
 
   // 处理快捷操作
   const handleQuickAction = useCallback((action: typeof quickSuggestions[0]) => {
